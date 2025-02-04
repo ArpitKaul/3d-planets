@@ -1,7 +1,8 @@
-// import "./style.css"
-import * as THREE from 'three';
-import { RGBELoader } from 'three/examples/jsm/Addons.js';
-import gsap from 'gsap';
+// Import necessary modules
+import * as THREE from './node_modules/three/build/three.module.js';
+import { RGBELoader } from './node_modules/three/examples/jsm/loaders/RGBELoader.js';
+import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
+import gsap from './node_modules/gsap/index.js';
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -15,6 +16,11 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
+// Add OrbitControls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; // Adds smooth motion to camera control
+
+// Load HDRI environment
 const loader = new RGBELoader();
 loader.load("https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/moonless_golf_1k.hdr", function (texture) {
   texture.mapping = THREE.EquirectangularReflectionMapping;
@@ -27,22 +33,21 @@ const orbitradius = 4.5;
 const textures = ["./csilla/color.png", './earth/map.jpg', "./venus/map.jpg", "./volcanic/color.png"];
 const spheres = new THREE.Group();
 
-// Create a large sphere for the star background
-const starRadius = 50; // Much larger than other spheres
+const starRadius = 50; 
 const starGeometry = new THREE.SphereGeometry(starRadius, 64, 64);
 const starTexture = new THREE.TextureLoader().load('./stars.jpg');
 starTexture.colorSpace = THREE.SRGBColorSpace;
 const starMaterial = new THREE.MeshStandardMaterial({
   map: starTexture,
   opacity: 0.3,
-  side: THREE.BackSide // Render on the inside of the sphere
+  side: THREE.BackSide 
 });
 const starSphere = new THREE.Mesh(starGeometry, starMaterial);
 scene.add(starSphere);
 
-const spheresMesh =[]
+const spheresMesh = [];
 
-// Create HDRI lighting
+// Add lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 
@@ -53,6 +58,7 @@ scene.add(directionalLight);
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
 scene.add(hemiLight);
 
+// Create planets
 for (let i = 0; i < 4; i++) {
   const textureLoader = new THREE.TextureLoader();
   const texture = textureLoader.load(textures[i]);
@@ -63,8 +69,6 @@ for (let i = 0; i < 4; i++) {
   const sphere = new THREE.Mesh(geometry, material);
 
   spheresMesh.push(sphere);
-
-
 
   const angle = (i / 4) * (Math.PI * 2);
 
@@ -77,23 +81,33 @@ spheres.position.y = -0.8;
 scene.add(spheres);
 camera.position.z = 9;
 
-// Planet names and scrolling logic
-const planetNames = ["Earth", "Scilla", "Volcanic", "Venus"];
+// Planet names and descriptions
+const planetNames = ["Earth", "Mercury", "Jupiter", "Mars"];
+const planetDescriptions = [
+  "The planet where life exists.",
+  "The smallest and fastest planet.",
+  "T.he largest planet with a massive storm",
+  "The smallest and fastest planet."
+];
+
 const headingElement = document.querySelector(".heading");
+const descriptionElement = document.querySelector(".planet-description");
 let scrollCount = 0;
 let lastScrollTime = 0;
 const scrollThrottleTime = 2000; // 2 seconds
 
 function updateHeading(index, direction) {
   // Animate old text out of view
-  gsap.to(headingElement, {
+  gsap.to([headingElement, descriptionElement], {
     duration: 0.5,
     y: direction === 1 ? -50 : 50,
     opacity: 0,
     onComplete: () => {
       headingElement.textContent = planetNames[index];
+      descriptionElement.textContent = planetDescriptions[index];
+
       gsap.fromTo(
-        headingElement,
+        [headingElement, descriptionElement],
         { y: direction === 1 ? 50 : -50, opacity: 0 },
         { y: 0, opacity: 1, duration: 0.5 }
       );
@@ -119,7 +133,7 @@ function throttledWheelHandler(event) {
   }
 }
 
-// Set initial heading
+// Set initial heading and description
 updateHeading(scrollCount, 1);
 window.addEventListener("wheel", throttledWheelHandler);
 
@@ -135,10 +149,16 @@ window.addEventListener('resize', () => {
 const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
-  for(let i=0;i<spheresMesh.length; i++){
+
+  // Add damping effect for OrbitControls
+  controls.update();
+
+  // Rotate planets
+  for (let i = 0; i < spheresMesh.length; i++) {
     const sphere = spheresMesh[i];
     sphere.rotation.y = clock.getElapsedTime() * 0.02;
   }
+
   renderer.render(scene, camera);
 }
 
